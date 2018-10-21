@@ -4,7 +4,8 @@ const fs      = require('fs'),
       express = require('express'),
       toml    = require('toml'),
       path    = require('path'),
-      expfup  = require('express-fileupload');
+      expfup  = require('express-fileupload'),
+      crypto  = require('crypto');
 
 const PORT = parseInt(process.argv[2]);
 
@@ -25,8 +26,26 @@ const fileList = require(config.file_list);
  TODO: rewrite in Rust.
 */
 
+/*
+ Taken from: SO
+*/
+function shuffle(array) {
+    for(let i = array.length; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[j], array[i]] = [array[j], array[i]];
+    }
+    return array;
+}
+
 // upload to nearby peers given the peer list.
+// return is a block of data including the 4 hashes.
 function upload(data) {
+    // create a SHA256 hash
+    const hash = data => {
+        let h = crypto.createHash('sha256');
+        return h.update(data, 'utf-8').digest;
+    };
+    
     // get the length as a 4-byte integer.
     const len = data.readIntLE(data.slice(2));
     console.log(len);
@@ -48,10 +67,33 @@ function upload(data) {
         // get a partial chunk of the remaining data.
         else chunks.push(data.slice(i, i + (len - i)));
     }
+
+    let hashes = [];
+    
+    peerList = shuffle(peerList);
+    for(let i =0; i < peerCount; i++) {
+        // form a POST request with the data
+        request.post({
+            url: `http://${peerList[i]}`,
+            formData: {
+                file: chunks[i]
+            }
+        }, (err, res, body) => {
+            if(err) throw err;
+            // in a future implementation, maintain state here for who is getting
+            // what to save time on requests. 
+            hashes.push(hash(chunks[i]));
+        });
+    }
 }
 
 // download the file from nearby peers.
 function download(data) {
+    // for a future implementation
+    // routes to files should be cached locally
+    // so that redirects are entirely unnecessary.
+    // This is one of the two reasons that redirects were chosen
+    // over just straight up throughputting data through every node.
     for(let i in peerList) {
         
     }
@@ -63,7 +105,9 @@ function list(data) {
         if(!peerList[i]) continue;
         request(`http://${peerList[i]}/list`, (err, res, body) => {
             if(err) throw err;
-            console.log(body);
+            // fix the weird formatting from the lazy parsing.
+            // given this is for human reading it isn't super necessary.
+            console.log(body.replace('[', '').replace(']', ''));
         });
     }
 }
@@ -94,7 +138,7 @@ server.on('connection', sock => {
             upload(data);
             break;
         case operations.LIST:
-            console.log(list(data));
+            list(data);
             break;
         }
     });
@@ -109,8 +153,10 @@ const app = express();
 // middleware
 app.use(expfup());
 
+// get the list of files this server knows about / has
 app.get('/list', (req, res) => {
-    
+    // this will return an array formatted thing that needs to be parsed : /
+    res.send(Object.keys(fileList));
 });
 
 // download a file chunk
@@ -134,7 +180,21 @@ app.get('/', (req, res) => {
 
 // upload a file chunk.
 app.post('/', (req, res) => {
-    let files = req.files;
+    // if only md5 wasn't wank I could use it because it comes with it.
+    // However, I can't sleep at night knowing I used md5 as a checksum,
+    // so I'm out here spending extra time hashing it with sha256.
+    let hash = crypto.createHash('sha256');
+    let file = req.files.file;
+    const MAX_FILE_SIZE = 1024;
+
+    // delegate the work and store.
+    if(file.size > MAX_FILE_SIZE) {
+        upload(req.files.file.data);
+    }
+
+    hash = hash.update(file.data, 'utf-8').digest('hex');
+    console.log(hash);
+    res.send(`File uploaded: ${hash}`);
 });
 
 app.listen(PORT+1);
