@@ -22,6 +22,8 @@ As the files are encrypted and then split up, users have no idea what their data
 
 Ishtar itself is implemented as a UNIX daemon that runs in the background. It runs an HTTP server that can be configured to run on any specified port. In order to download or upload files, you need to have your webserver running (to avoid the BT 0% seeder problem).
 
+Files are downloaded and specified not with UUIDs or with special identifiers, but with cryptographic hashes of their content. This doubles as both ensuring data-integrity and providing an identification system to tell if a peer has the data you are seeking. If requested, a peer will announce all of the checksums they have (rest endpoint `/list`).
+
 ### Assumptions made by Ishtar
 - Every actor on the network is attempting malicious action
 - nodes will go offline and will return at will and will take their data with them.
@@ -34,3 +36,23 @@ Unlike with modern cryptocurrency-based systems, there is _no_ monetary incentiv
 
 ### What is Ishtar _not_
 Ishtar is _not_ a file-sharing protocol for pirates. The system is not designed in any way to distribute files to other users, as that would require distributing your private key to another individual (which is breaking rules 1-n of OPSEC).
+
+## Usage
+
+### Setup
+To start the Ishtar daemon, run `$ node ishtard.js [PORT] &`. Also note that PORT+1 must also be an available port for the HTTP server. In order to use Ishtar, you _must_ open your HTTP server port. If users notice you don't provide storage space for others and you are evading the checks the daemon puts in place, users on your network may permanently blacklist you.
+
+Presently, Ishtar is untested at best in Windows environments, and it makes the assumption that there are UNIX domain sockets available (WinSocks may work, this is untested).
+
+Additionally, you need to create a `.ishtar` file in your home directory as well as `.ishtar.d` and `.ishtar.d/files`. `.ishtar`. is a TOML file maintaining the configuration for your daemon and client.
+```toml
+port = 4848
+peer_list = "/home/USER/.ishtar.d/peer_list.txt"
+file_list = "/home/USER/.ishtar.d/file_list.json"
+file_storage = 9018230918209
+```
+
+### Client
+Ishtar uses a ruby CLI client for interacting with the Daemon (this can also be automated because it just uses UNIX sockets on a port you define; the packet format is defined in both the client and the daemon in plaintext).
+
+`$ ishtar.rb <list|upload|download> <NA|file_path|checksum>`
