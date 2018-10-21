@@ -47,9 +47,9 @@ function upload(data) {
         return h.update(data, 'utf-8').digest('hex');
     };
 
-    let Kp = forge.pki.privateKeyFromPem(
-        fs.readFileSync(config.priv_key).to_string());
-    data = Kp.sign(data);
+    let Kp = forge.pki.publicKeyFromPem(
+        fs.readFileSync(config.pub_key).toString());
+    data = Kp.encrypt(data);
     
     // get the length as a 4-byte integer.
     const len = data.readIntLE(3);
@@ -113,7 +113,9 @@ function download(data) {
             if(err) throw err;
             if(body.includes(checksum)) {
                 request(`http://${peerList[i]}/?hash=${checksum}`, (err, res, body) => {
-                    fs.writeFileSync(`~/.ishtar.d/files/${checksum}`);
+                    let Kpu = forge.pki.privateKeyFromPem(
+                        fs.readFileSync(config.priv_key).toString());
+                    fs.writeFileSync(`~/.ishtar.d/files/${checksum}`, Kpu.decrypt(body));
                 });
                 break;
             }
