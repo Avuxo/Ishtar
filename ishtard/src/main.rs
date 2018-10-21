@@ -2,14 +2,17 @@
 extern crate serde_derive;
 extern crate toml;
 
-use std::net::{TcpListener, TcpStream};
-use std::thread;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+
+pub mod server;
+mod request;
 
 #[derive(Deserialize)]
 struct Config {
     port: i64,
-    peer_list: String
+    peer_list: String,
+    file_list: String,
+    file_storage: i64 // in bytes
 }
 
 fn read_peer_list<'a>(path: String) -> Vec<&'a str> {
@@ -44,18 +47,8 @@ fn read_config(path: String) -> Config{
 }
 
 fn main() {
-    const PORT: i32 = 4848;
-
-    // bind the TCP server.
-    let listener = TcpListener::bind("127.0.0.1:4848").unwrap();
-    println!("Ishtar Daemon is listening on port {}", PORT);
-
     let config: Config = read_config("~/.ishtar".to_string());
 
-    // listen on the port for TCP requests and then delegate them based on packet info.
-    for stream in listener.incoming() {
-        thread::spawn(|| {
-            println!("!!");
-        });
-    }
+    request::request::list_files_on_server("https://www.rust-lang.org".to_string());
+    server::server::start_tcp_server(config.port);
 }
