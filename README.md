@@ -2,6 +2,7 @@
 A collaborative fully distributed cloud storage system
 <p align="center">
    <img src="https://github.com/avuxo/Ishtar/blob/master/ishtar.gif?raw=true" />
+   <br><i>special thanks to Chris and Martin for the awesome <a href="https://en.wikipedia.org/wiki/Inanna">Ishtar</a>-inspired logo!</i>
 </p>
 
 
