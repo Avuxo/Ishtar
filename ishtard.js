@@ -1,3 +1,12 @@
+/*
+ Ishtar distributed system daemon
+ This was originally written in Rust, but due to time constraints
+ it was ported to Node for easier HTTP library stuff (mostly all of
+ the projet is HTTP requests).
+
+ NOTE: PORT AND PORT + 1 must be available. 
+*/
+
 const fs      = require('fs'),
       net     = require('net'),
       request = require('request'),
@@ -17,15 +26,6 @@ const peerList = fs.readFileSync(config.peer_list).toString().split("\n");
 // if an IP is returned, the work is delegated elsewhere.
 const fileList = require(config.file_list);
 
-
-/*
- HTTP microservice for the Ishtar network daemon.
-
- This is the section that handles the actual network stack.
- This would've been done in rust if this weren't written in under 24 hours.
- TODO: rewrite in Rust.
-*/
-
 /*
  Taken from: SO
 */
@@ -43,12 +43,11 @@ function upload(data) {
     // create a SHA256 hash
     const hash = data => {
         let h = crypto.createHash('sha256');
-        return h.update(data, 'utf-8').digest;
+        return h.update(data, 'utf-8').digest('hex');
     };
     
     // get the length as a 4-byte integer.
-    const len = data.readIntLE(data.slice(2));
-    console.log(len);
+    const len = data.readIntLE(3);
     // we want to split the file up to n/x peers where x
     // is a predefined constant (in this case 5).
     // we then want to send those file chunks out to
@@ -58,25 +57,34 @@ function upload(data) {
     const chunkSize = len / x;
     const chunks = [];
 
+    if (len < 1) return;
+    
     // split the file into chunks
     // (this is inefficient but I've only got 6 hours left.)
     let i = 0;
     while (i < len) {
+        console.log('!!');
         // get full chunk
         if (i + chunkSize < len) chunks.push(data.slice(i, i += chunkSize));
         // get a partial chunk of the remaining data.
-        else chunks.push(data.slice(i, i + (len - i)));
+        else chunks.push(data.slice(i, i += (len - i)));
     }
-
-    let hashes = [];
     
-    peerList = shuffle(peerList);
+    let hashes = [];
+    let newPeerList = shuffle(peerList);
     for(let i =0; i < peerCount; i++) {
+        if(!newPeerList[i]) continue;
         // form a POST request with the data
+        console.log(chunks[i]);
         request.post({
-            url: `http://${peerList[i]}`,
+            url: `http://${newPeerList[i]}`,
             formData: {
-                file: chunks[i]
+                file: {
+                    value: chunks[i],
+                    options: {
+                        filename: hash(chunks[i])
+                    }
+                }
             }
         }, (err, res, body) => {
             if(err) throw err;
@@ -89,13 +97,22 @@ function upload(data) {
 
 // download the file from nearby peers.
 function download(data) {
+    let checksum = data.slice(7);
     // for a future implementation
     // routes to files should be cached locally
     // so that redirects are entirely unnecessary.
     // This is one of the two reasons that redirects were chosen
     // over just straight up throughputting data through every node.
     for(let i in peerList) {
-        
+        request(`http://${peerList[i]}/list`, (err, res, body) => {
+            if(err) throw err;
+            if(body.includes(checksum)) {
+                request(`http://${peerList[i]}/?hash=${checksum}`, (err, res, body) => {
+                    fs.writeFileSync(`~/.ishtar.d/files/${checksum}`);
+                });
+                break;
+            }
+        });
     }
 }
 
@@ -129,17 +146,19 @@ server.on('connection', sock => {
         LIST: 2
     };
     sock.on('data', data => {
-        // operation byte
-        switch(data[2]) {
-        case operations.UPLOAD:
-            upload(data);
-            break;
-        case operations.DOWNLOAD:
-            upload(data);
-            break;
-        case operations.LIST:
-            list(data);
-            break;
+        if(data[0] == 0x2A && data[1] == 0x89) {
+            // operation byte
+            switch(data[2]) {
+            case operations.UPLOAD:
+                upload(data);
+                break;
+            case operations.DOWNLOAD:
+                upload(data);
+                break;
+            case operations.LIST:
+                list(data);
+                break;
+            }
         }
     });
 });
@@ -150,8 +169,8 @@ server.on('connection', sock => {
 
 const app = express();
 
-// middleware
-app.use(expfup());
+// middleware // 
+app.use(expfup()); // file upload middleware
 
 // get the list of files this server knows about / has
 app.get('/list', (req, res) => {
@@ -178,7 +197,7 @@ app.get('/', (req, res) => {
     }
 });
 
-// upload a file chunk.
+// endpoint for chunk update.
 app.post('/', (req, res) => {
     // if only md5 wasn't wank I could use it because it comes with it.
     // However, I can't sleep at night knowing I used md5 as a checksum,
@@ -193,7 +212,6 @@ app.post('/', (req, res) => {
     }
 
     hash = hash.update(file.data, 'utf-8').digest('hex');
-    console.log(hash);
     res.send(`File uploaded: ${hash}`);
 });
 
