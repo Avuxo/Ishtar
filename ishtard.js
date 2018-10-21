@@ -14,7 +14,8 @@ const fs      = require('fs'),
       toml    = require('toml'),
       path    = require('path'),
       expfup  = require('express-fileupload'),
-      crypto  = require('crypto');
+      crypto  = require('crypto'),
+      forge   = require('forge');
 
 const PORT = parseInt(process.argv[2]);
 
@@ -45,6 +46,10 @@ function upload(data) {
         let h = crypto.createHash('sha256');
         return h.update(data, 'utf-8').digest('hex');
     };
+
+    let Kp = forge.pki.privateKeyFromPem(
+        fs.readFileSync(config.priv_key).to_string());
+    data = Kp.sign(data);
     
     // get the length as a 4-byte integer.
     const len = data.readIntLE(3);

@@ -50,6 +50,8 @@ port = 4848
 peer_list = "/home/USER/.ishtar.d/peer_list.txt"
 file_list = "/home/USER/.ishtar.d/file_list.json"
 file_storage = 9018230918209
+priv_key = "/home/USER/.ishtar.d/priv_key.pem"
+pub_key = "/home/USER/.ishtar.d/pub_key.pem"
 ```
 
 ### Client
@@ -63,4 +65,4 @@ Ishtar uses a ruby CLI client for interacting with the Daemon (this can also be 
 
 
 
-_Ishtar was created in less than 24 hours at a university hackathon by four students, with diagraming, logo design, and protocol design help being performed by Chris and Matin, client design and implementation by Daniel, and protocol design and implementation by Ben_
+_Ishtar was created in less than 24 hours at a university hackathon by four students, with diagraming, logo design, and protocol design help being performed by Chris and Martin, client design and implementation by Daniel, and protocol design and implementation by Ben_

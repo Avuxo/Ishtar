@@ -4,6 +4,7 @@
   "description": "The http microservice for Ishtard",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Ben <Avuxo>",
@@ -11,6 +12,7 @@
   "dependencies": {
     "express": "^4.16.4",
     "express-fileupload": "^1.0.0",
+    "forge": "^2.3.0",
     "get-folder-size": "^2.0.0",
     "request": "^2.88.0",
     "toml": "^2.3.3"
