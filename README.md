@@ -56,3 +56,11 @@ file_storage = 9018230918209
 Ishtar uses a ruby CLI client for interacting with the Daemon (this can also be automated because it just uses UNIX sockets on a port you define; the packet format is defined in both the client and the daemon in plaintext).
 
 `$ ishtar.rb <list|upload|download> <NA|file_path|checksum>`
+
+
+
+
+
+
+
+_Ishtar was created in less than 24 hours at a university hackathon by four students, with diagraming, logo design, and protocol design help being performed by Chris and Matin, client design and implementation by Daniel, and protocol design and implementation by Ben_
